@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# Written by Darko Krizic <darko@krizic.net>
+
+url=$1
+user=$2
+pass=$3
+status=$(wget -q --user $2 --password $3 $url -O - | grep alarm_status | sed -e 's/^var alarm_status=//' | sed -e 's/;$//g')
+if [ "$status" = "0" ]
+then
+	echo "OK - No alarm on $url | alarm=$status"
+	exit 0
+fi
+if [ "$status" = "1" ]
+then
+	echo "ALARM - Alarm active on $url | alarm=$status"
+	exit 2
+fi
+echo "WARNING - Unable to access $user@$url: $status | alarm=1"
+exit 1

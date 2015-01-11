@@ -1,0 +1,71 @@
+#!/usr/bin/perl -w
+
+# Written by Darko Krizic <darko@krizic.net>
+
+use strict;
+use Data::Dumper;
+
+my $bjnp = shift;
+my $printer = shift;
+
+unless ( defined $printer ) {
+	print "Usage: $0 <bjnp-binary> <print-uri>\n";
+	exit 2;
+}
+#$ENV{'PATH'} = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+#$ENV{'LD_LIBRARY_PATH'} = "/opt/vc/lib:/lib/arm-linux-gnueabihf:/usr/lib/arm-linux-gnueabihf:/usr/local/lib";
+$ENV{'DEVICE_URI'} = $printer;
+open(OUT,"$bjnp 1 2 3 1 none /dev/null 2>&1 | tee /tmp/out |");
+my %marker;
+my $all;
+while(my $line = <OUT>) {
+	chomp $line;
+	#print "$line\n";
+	$all .= $line."//";
+	if( $line =~ m/^ATTR/ ) {
+		$line =~ s/^ATTR: //;
+		my ($key,$value) = split("=", $line);
+		if( $key =~ m/marker-/ ) {
+			$key =~ s/^marker-//;
+			$value =~ s/^"//;
+			$value =~ s/"$//;
+			my @values = split(",",$value);
+			$marker{$key} = \@values;
+		}
+	}
+}
+
+my $status = 0;
+
+unless( defined $marker{'names'} ) {
+	print "CRITICAL: Unexpected output $all";
+	exit 2;
+}
+
+my $count = scalar @{$marker{'names'}};
+my $out = "";
+my $perf = "";
+my $warn = "";;
+for( my $i = 0; $i < $count; $i++ ) {
+	my $name = $marker{'names'}->[$i];
+	my $level = $marker{'levels'}->[$i];
+	my $lowlevel = $marker{'low-levels'}->[$i];
+	#$lowlevel = 75;
+	if( $level <= $lowlevel ) {
+		$status = 1;
+		$warn .= "," unless $warn eq "";
+		$warn .= "$name=$level (<$lowlevel)";
+	} else {
+		$out .= ", " unless $out eq "";
+		$out .= "$name=$level";
+	}
+	my $used = 100 - $level;
+	$perf .= "'$name'=$used%;70;90;0;100 ";
+}
+
+if( $status == 0 ) {
+	print "OK: $out | $perf\n";
+} else {
+	print "WARNING: $warn ($out) | $perf\n";
+}
+exit $status;

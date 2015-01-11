@@ -1,0 +1,36 @@
+#!/bin/bash
+. /usr/lib/nagios/plugins/utils.sh
+
+# Written by Darko Krizic <darko@krizic.net>
+
+username=$1
+password=$2
+warning=$3
+critical=$4
+
+#echo "username=[$username] password=[$password] warning=[$warning] critical=[$critical]" >/tmp/x
+out=$(curl -s -u "$username:$password" https://api.sipgate.net/my/billing/balance/)
+status=$?
+if [ $status -eq 0 ]
+then
+	out2=$(echo $out | xml2)
+	currency=$(echo $out2 | sed -e 's/ /\n/g' | grep currency | awk -F= '{print $2}')
+	total=$(echo $out2 | sed -e 's/ /\n/g' | grep totalIncludingVat | awk -F= '{print $2}')
+	round=$(echo $total | awk -F\. '{print $1}')
+	perf="'Balance'=$total;$warning;$critical"
+	if [ $round -lt $critical ]
+	then
+		echo "CRITICAL Balance $total $currency below $critical | $perf"
+		exit $STATE_CRITICAL
+	fi
+	if [ $round -lt $warning ]
+	then
+		echo "WARNING Balance $total $currency below $warning | $perf"
+		exit $STATE_WARNING
+	fi
+	echo "OK Balance is $total $currency | $perf"
+	exit $STATE_OK
+else
+	echo "Unable to read balance, status $status"
+	exit $STATE_UNKNOWN
+fi

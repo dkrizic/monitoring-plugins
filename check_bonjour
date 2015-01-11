@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Written by Darko Krizic <darko@krizic.net>
+
+BonjourName="$1" 
+BonjourType="$2"
+name=$(echo $BonjourName | sed -e 's/ /\\\\032/g')
+result=$(/usr/bin/avahi-browse -p -t -k "$BonjourType" 2>/dev/null | grep $name)
+count=$(echo $result | awk -F\; '{print $4}' | sed -e 's/\\032/ /g' | grep "$BonjourName" | wc -l)
+if [ $count -eq 0 ]
+then
+	echo "CRITICAL Service $BonjourName of type $BonjourType not found"
+	exit 2
+fi
+output=$(echo $result | sed -e 's/\\032/ /g' | awk -F\; '{print $4"."$6" ("$5")"'})
+echo "OK $output"
+exit 0

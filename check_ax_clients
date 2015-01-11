@@ -1,0 +1,94 @@
+#!/usr/bin/perl -w
+
+# Written by Darko Krizic <darko@krizic.net>
+
+use strict;
+use Data::Dumper;
+
+my $ax = shift;
+
+unless ( defined $ax ) {
+	print "Usage: $0 <airport>\n";
+	exit 2;
+}
+
+my %mac;
+open(SNMP,"snmpwalk -c public -v 2c -m AIRPORT-BASESTATION-3-MIB $ax SNMPv2-SMI::enterprises.apple.airport | grep wirelessPhysAddress |");
+while(my $line = <SNMP>) {
+	chomp $line;
+	my ($null,$mac) = split(" = STRING: ", $line);
+	$mac = lc $mac;
+	$mac =~ s/"//g;
+	$mac{$mac} = {};
+}
+close(SNMP);
+
+#my %arp;
+open(ARP,"/usr/sbin/arp |");
+<ARP>;
+while(my $line = <ARP>) {
+	chomp $line;
+	my ($name,$null,$mac,$null2) = split(/ +/, $line );
+	if( $name =~ m/[A-Za-z]/g ) {
+		$name =~ s/\..+//g;
+	}
+	if( defined $mac{$mac} ) {
+		$mac{$mac}->{'name'} = $name;
+	}
+}
+close(ARP);
+
+foreach( keys %mac ) {
+	unless( defined $mac{$_}->{'name'} ) {
+		$mac{$_}->{'name'} = '-';
+	}
+}
+
+open(WHITELIST,"/usr/local/etc/whitelist.arp");
+while(my $line = <WHITELIST>) {
+	chomp $line;
+	next if $line =~ m/^$/;
+	next if $line =~ m/^#/;
+	my ($mac,$name) = split( "=", $line );
+	if( defined $mac{$mac} ) {
+		$mac{$mac}->{'whitelist'} = 1;
+		$mac{$mac}->{'name'} = $name;
+	}
+}
+close(WHITELIST);
+
+my $exit = 0;
+my @unknown;
+my @known;
+
+#print Dumper(\%mac);
+
+foreach( keys %mac ) {
+	my $name = $mac{$_}->{'name'};
+	if( defined $mac{$_}->{'whitelist'} ) {
+		if( $name ne '-' ) {
+			push @known,$name;
+		} else {
+			push @known,$_;
+		}
+	} else {
+		push @unknown,"$name=$_";
+	}
+}
+
+if( scalar @unknown > 0 ) {
+	$exit = 1;
+}
+
+my $kcount = scalar @known;
+my $ucount = scalar @unknown;
+my $known = join(", ",@known);
+my $unknown = join(", ",@unknown);
+my $perf = "'known'=$kcount 'unknown'=$ucount;1;5";
+if( $exit == 0 ) {
+	print "OK: $known | $perf\n";
+	exit 0;
+} else {
+	print "WARNING: Unkown clients $unknown - known $known | $perf\n";
+	exit 1;
+}
