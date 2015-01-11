@@ -1,5 +1,7 @@
 #!/usr/bin/perl -w
 
+# Used for checking the Ink Level on various Canon Ink Jet printers
+#
 # Written by Darko Krizic <darko@krizic.net>
 
 use strict;
