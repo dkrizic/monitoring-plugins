@@ -1,6 +1,7 @@
 #!/usr/bin/perl -w
 
 # Monitor clients on Apple Airport Extreme an Express 
+# Requires AIRPORT-BASESTATION-3-MIB in any default SNMP MIB location
 #
 # Written by Darko Krizic <darko@krizic.net>
 

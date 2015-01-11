@@ -1,6 +1,9 @@
 #!/bin/bash
 
+# Scans Bonjour for a service name with a specific type.
+# Requires the tool "avahi-browse"
 # Written by Darko Krizic <darko@krizic.net>
+
 
 BonjourName="$1" 
 BonjourType="$2"
