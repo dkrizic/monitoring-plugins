@@ -1,0 +1,45 @@
+#!/usr/bin/perl
+
+# Check the number of connected nodes for a given
+# Freifunk Node name
+# URL = http://map.ffm.freifunk.net/ffmap-d3/nodes.json
+# Returns OK with the number
+# Except for technical problems
+# Written by Darko Krizic <darko@krizic.net>
+
+use strict;
+use warnings;
+
+use LWP::Simple;
+use JSON;
+use Data::Dumper;
+
+my $url = shift;
+my $nodename = shift;
+
+unless ($nodename) {
+	$url = "" unless defined $url;
+	$nodename = "" unless defined $nodename;
+	print "CRITICAL: Wrong parameters (url=$url, nodename=$nodename)\n";
+	exit 2;
+}
+
+my $content = get( $url );
+my $json = decode_json( $content );
+
+my @nodes = @{$json->{'nodes'}};
+for my $node ( @nodes ) {
+	my %node = %{$node};
+	my $name = $node{'name'};
+	next if $name ne $nodename;
+	my $clientcount = $node{'clientcount'};
+	my $firmware = $node{'firmware'};
+	my $id = $node{'id'};
+	print "$name\n";
+	print Dumper( \%node );
+	print "OK: Node '$name' (id $id, firmware $firmware) has $clientcount clients | clientcount=$clientcount\n";
+	exit 0;
+}
+
+print "WARNING: Node '$nodename' not found\n";
+exit 1;

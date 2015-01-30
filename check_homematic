@@ -49,7 +49,9 @@ my %address;
 	print "Connecting to $url\n" if $verbose;
 	my $resp = $cli->send_request('listDevices');
 	foreach my $device (@{$resp}) {
+		#print Dumper( $device );
 		my $address = $device->{'ADDRESS'}->value;
+		#my $name = $device->{'NAME'}->value;
 		my $channel = undef;
 		if( $address =~ m/:/ ) {
 			($address,$channel) = split(":",$address);
@@ -86,7 +88,7 @@ foreach my $address (keys %address) {
 			push @lowbat,$address;
 		}
 	}
-	if( $address{$address}->{'unreach'} ne 0 ) {
+	if( defined $address{$address}->{'unreach'} && $address{$address}->{'unreach'} ne 0 ) {
 		push @unreach,$address;
 	}
 }
@@ -107,7 +109,7 @@ if( $level eq 'critical' ) {
 if( $mode eq 'lowbat' ) {
 	my $perf = "'Low battery'=$lowbat";
 	if( $lowbat eq 0 ) {
-		printf "OK: All %i batterydevices with sufficient batteries | $perf\n", $batcount;
+		printf "OK: All %i battery powered devices with sufficient batteries | $perf\n", $batcount;
 		exit 0;
 	}
 	printf "$retname: %i of %i devices (%s) have battery problems | $perf\n", $lowbat, $batcount, join(", ", @lowbat);
