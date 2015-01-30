@@ -12,3 +12,4 @@ check_peer_status
 check_registry_status
 notify_by_pushover
 notify_by_sms
+observium_agent
