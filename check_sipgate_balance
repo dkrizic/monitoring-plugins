@@ -1,6 +1,8 @@
 #!/bin/bash
 . /usr/lib/nagios/plugins/utils.sh
 
+# Checks Sipgate api for the billing state.
+# Requires curl and xml2 cli tools
 # Written by Darko Krizic <darko@krizic.net>
 
 username=$1

@@ -1,5 +1,7 @@
 #!/usr/bin/perl -w
 
+# Checks Homematic CCU or Homegear for battery state and unreachable devices
+# Requires perl and RPC:XML
 # Written by Darko Krizic <darko@krizic.net>
 
 use strict;
