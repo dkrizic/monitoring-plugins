@@ -35,8 +35,6 @@ for my $node ( @nodes ) {
 	my $clientcount = $node{'clientcount'};
 	my $firmware = $node{'firmware'};
 	my $id = $node{'id'};
-	print "$name\n";
-	print Dumper( \%node );
 	print "OK: Node '$name' (id $id, firmware $firmware) has $clientcount clients | clientcount=$clientcount\n";
 	exit 0;
 }
