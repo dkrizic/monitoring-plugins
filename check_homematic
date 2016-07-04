@@ -16,7 +16,7 @@ Usage: check_homematic [-v] --host=<hostname> --port=<port> --mode=<lowbat|unrea
 
 	host: The Homematic XML RPC host
 	port: The port number of the XML RPC host
-	mode: Check for lowbat or for unreach
+	mode: Check for "lowbat", "unreach" or configuration "pending"
 	level: If a lowbat or unreach occurs, is it a warning or critical
 EOF
 	exit 255;
@@ -41,7 +41,7 @@ usage() unless defined $port;
 usage() unless defined $mode;
 usage() unless defined $level;
 usage() unless $level eq 'warning' || $level eq 'critical';
-usage() unless $mode eq 'lowbat' || $mode eq 'unreach';
+usage() unless $mode eq 'lowbat' || $mode eq 'unreach' || $mode eq 'pending';
 
 my $url = "http://$host:$port";
 my $cli = RPC::XML::Client->new($url);
@@ -78,6 +78,7 @@ foreach my $address (keys %address) {
 	print Dumper( $resp ) if $verbose;
 	$address{$address}->{'unreach'} = $resp->value->{'UNREACH'};
 	$address{$address}->{'lowbat'} = $resp->value->{'LOWBAT'};
+	$address{$address}->{'pending'} = $resp->value->{'CONFIG_PENDING'};
 }
 
 printf "Reading device informaiton for %i devices\n", scalar keys %address if $verbose;
@@ -102,6 +103,7 @@ foreach my $address (keys %address) {
 my @lowbat = ();
 my $batcount = 0;
 my @unreach = ();
+my @pending = ();
 
 print Dumper("devices", \%address) if $verbose;
 
@@ -115,13 +117,18 @@ foreach my $address (keys %address) {
 	if( defined $address{$address}->{'unreach'} && $address{$address}->{'unreach'} ne 0 ) {
 		push @unreach,$address{$address}->{'outname'};
 	}
+	if( defined $address{$address}->{'pending'} && $address{$address}->{'pending'} ne 0 ) {
+		push @pending,$address{$address}->{'outname'};
+	}
 }
 
 my $lowbat = scalar @lowbat;
 my $unreach = scalar @unreach;
+my $pending = scalar @pending;
 
 printf "%i devices have low battery\n", $lowbat if $verbose;
 printf "%i devices are unreachable\n", $unreach if $verbose;
+printf "%i devices have pending configurations\n", $pending if $verbose;
 
 my $ret = 1;	
 my $retname = 'WARNING';
@@ -138,7 +145,7 @@ if( $mode eq 'lowbat' ) {
 	}
 	printf "$retname: %i of %i devices (%s) have battery problems | $perf\n", $lowbat, $batcount, join(", ", @lowbat);
 	exit $ret;
-} elsif( $mode eq "unreach" ) {
+} elsif( $mode eq 'unreach' ) {
 	my $perf = "'Unreachable'=$unreach";
 	if( $unreach eq 0 ) {
 		printf "OK: All %i devices reachable | $perf\n", scalar keys %address;
@@ -146,7 +153,15 @@ if( $mode eq 'lowbat' ) {
 	}
 	printf "$retname: %i of %i devices (%s) unreachable | $perf\n", $unreach, scalar keys %address, join(", ", @unreach);
 	exit $ret;
-} 
+} elsif ( $mode eq 'pending' ) { 
+	my $perf = "'Pending'=$pending";
+	if( $pending eq 0 ) {
+		printf "OK: No of %i devices have pending configuration | $perf\n", scalar keys %address;
+		exit 0;
+	}
+	printf "$retname: %i of %i devices (%s) have pending configurations | $perf\n", $pending, scalar keys %address, join(", ", @pending);
+	exit $ret;
+}
 
 print "ERROR: Unknown mode $mode\n";
 exit 2;
