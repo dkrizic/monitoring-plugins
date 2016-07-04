@@ -50,10 +50,13 @@ my %address;
 {
 	print "Connecting to $url\n" if $verbose;
 	my $resp = $cli->send_request('listDevices');
+	print Dumper( $resp ) if $verbose;
 	foreach my $device (@{$resp}) {
 		#print Dumper( $device );
+		my $id = $device->{'ID'}->value;
 		my $address = $device->{'ADDRESS'}->value;
 		#my $name = $device->{'NAME'}->value;
+		my $deviceDesc = $cli->send_request;
 		my $channel = undef;
 		if( $address =~ m/:/ ) {
 			($address,$channel) = split(":",$address);
@@ -77,6 +80,25 @@ foreach my $address (keys %address) {
 	$address{$address}->{'lowbat'} = $resp->value->{'LOWBAT'};
 }
 
+printf "Reading device informaiton for %i devices\n", scalar keys %address if $verbose;
+foreach my $address (keys %address ) {
+	my $id = $address{$address}->{'id'};
+	my @msg;
+	push @msg, RPC::XML::int->new( $id );
+	my $resp = $cli->send_request('getDeviceInfo', @msg );
+	print Dumper( $resp ) if $verbose;
+	$address{$address}->{'name'} = $resp->value->{'NAME'};
+}
+
+foreach my $address (keys %address) {
+	my $outname = $address;
+	my $name = $address{$address}->{'name'};
+	if( $name ) {
+		$outname = "$name <$address>";
+	}
+	$address{$address}->{'outname'} = $outname;
+}
+
 my @lowbat = ();
 my $batcount = 0;
 my @unreach = ();
@@ -87,11 +109,11 @@ foreach my $address (keys %address) {
 	if( defined $address{$address}->{'lowbat'} ) {
 		$batcount++;
 		if( $address{$address}->{'lowbat'} ne 0 ) {
-			push @lowbat,$address;
+			push @lowbat,$address{$address}->{'outname'};
 		}
 	}
 	if( defined $address{$address}->{'unreach'} && $address{$address}->{'unreach'} ne 0 ) {
-		push @unreach,$address;
+		push @unreach,$address{$address}->{'outname'};
 	}
 }
 
