@@ -16,7 +16,7 @@ Usage: check_homematic [-v] --host=<hostname> --port=<port> --mode=<lowbat|unrea
 
 	host: The Homematic XML RPC host
 	port: The port number of the XML RPC host
-	mode: Check for "lowbat", "unreach" or configuration "pending"
+	mode: Check for "lowbat", "unreach", "srvmsg" (for Service Messages) or configuration "pending"
 	level: If a lowbat or unreach occurs, is it a warning or critical
 EOF
 	exit 255;
@@ -41,10 +41,42 @@ usage() unless defined $port;
 usage() unless defined $mode;
 usage() unless defined $level;
 usage() unless $level eq 'warning' || $level eq 'critical';
-usage() unless $mode eq 'lowbat' || $mode eq 'unreach' || $mode eq 'pending';
+usage() unless $mode eq 'lowbat' || $mode eq 'unreach' || $mode eq 'pending' || $mode eq "srvmsg";
 
 my $url = "http://$host:$port";
 my $cli = RPC::XML::Client->new($url);
+
+my $ret = 1;	
+my $retname = 'WARNING';
+if( $level eq 'critical' ) {
+	$ret = 2;
+	$retname = 'WARNING';
+}
+
+if( $mode eq 'srvmsg' ) {
+	print "Connecting to $url\n" if $verbose;
+	my $resp = $cli->send_request("getServiceMessages" );
+	print Dumper( $resp ) if $verbose;
+	my %state;
+	foreach my $entry (@{$resp}) {
+		print Dumper( $entry ) if $verbose;
+		my $address = @{$entry}[0]->value;
+		my $state = @{$entry}[1]->value;
+		push @{$state{$state}}, $address;
+		print "$address = $state\n";
+	}
+	print Dumper( \%state ) if $verbose;
+	if( scalar keys %state == 0 ) {
+		print "OK: No service message\n";
+		exit 0;
+	}
+	my @state;
+	foreach my $state ( keys %state ) {
+		push @state, "$state (".join(", ", @{$state{$state}}).")";
+	}
+	print "$retname: Devices have service messages: ".join(", ", @state)."\n";
+	exit $ret;
+}
 
 my %address;
 {
@@ -129,13 +161,6 @@ my $pending = scalar @pending;
 printf "%i devices have low battery\n", $lowbat if $verbose;
 printf "%i devices are unreachable\n", $unreach if $verbose;
 printf "%i devices have pending configurations\n", $pending if $verbose;
-
-my $ret = 1;	
-my $retname = 'WARNING';
-if( $level eq 'critical' ) {
-	$ret = 2;
-	$retname = 'WARNING';
-}
 
 if( $mode eq 'lowbat' ) {
 	my $perf = "'Low battery'=$lowbat";
