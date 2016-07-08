@@ -27,6 +27,7 @@ my $host = undef;
 my $port = undef;
 my $mode = undef;
 my $level = undef;
+my $ccu = 0;
 
 GetOptions(
 	'verbose|v!' => \$verbose,
@@ -85,9 +86,11 @@ my %address;
 	print Dumper( $resp ) if $verbose;
 	foreach my $device (@{$resp}) {
 		#print Dumper( $device );
-		my $id = $device->{'ID'}->value;
+		my $id;
+		if( $device->{'ID'} ) {
+			$id = $device->{'ID'}->value;
+		}
 		my $address = $device->{'ADDRESS'}->value;
-		#my $name = $device->{'NAME'}->value;
 		my $deviceDesc = $cli->send_request;
 		my $channel = undef;
 		if( $address =~ m/:/ ) {
@@ -95,13 +98,16 @@ my %address;
 			$address{$address}->{'channel'} = [] unless defined $address{$address}->{'channel'};;
 			push @{$address{$address}->{'channel'}},$channel;
 		} else {
-			$address{$address}->{'id'} = $device->{'ID'}->value;
+			if( $id ) {
+				$address{$address}->{'id'} = $id;
+			}
 		}
 	}
 }
 printf "Reading details for %i devices\n",scalar keys %address if $verbose;
 foreach my $address (keys %address) {
-	my $id = $address{$address}->{'id'};
+	my $id = $address;
+	$id = $address{$address}->{'id'} if $address{$address}->{'id'};
 	my @msg;
 	push @msg, RPC::XML::int->new( $id );
 	push @msg, RPC::XML::int->new( 0 );
@@ -115,12 +121,16 @@ foreach my $address (keys %address) {
 
 printf "Reading device informaiton for %i devices\n", scalar keys %address if $verbose;
 foreach my $address (keys %address ) {
-	my $id = $address{$address}->{'id'};
-	my @msg;
-	push @msg, RPC::XML::int->new( $id );
-	my $resp = $cli->send_request('getDeviceInfo', @msg );
-	print Dumper( $resp ) if $verbose;
-	$address{$address}->{'name'} = $resp->value->{'NAME'};
+	if( $address{$address}->{'id'} ) {
+		my $id = $address{$address}->{'id'};
+		my @msg;
+		push @msg, RPC::XML::int->new( $id );
+		my $resp = $cli->send_request('getDeviceInfo', @msg );
+		print Dumper( $resp ) if $verbose;
+		if( $resp->value && $resp->value->{'NAME'} ) {
+			$address{$address}->{'name'} = $resp->value->{'NAME'};
+		}
+	}
 }
 
 foreach my $address (keys %address) {
