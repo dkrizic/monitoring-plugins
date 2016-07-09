@@ -59,12 +59,14 @@ if( $mode eq 'srvmsg' ) {
 	my $resp = $cli->send_request("getServiceMessages" );
 	print Dumper( $resp ) if $verbose;
 	my %state;
-	foreach my $entry (@{$resp}) {
-		print Dumper( $entry ) if $verbose;
-		my $address = @{$entry}[0]->value;
-		my $state = @{$entry}[1]->value;
-		push @{$state{$state}}, $address;
-		#print "$address = $state\n";
+	if( ref( $resp ) eq 'RPC::XML::array' ) {
+		foreach my $entry (@{$resp}) {
+			print Dumper( $entry ) if $verbose;
+			my $address = @{$entry}[0]->value;
+			my $state = @{$entry}[1]->value;
+			push @{$state{$state}}, $address;
+			#print "$address = $state\n";
+		}
 	}
 	print Dumper( \%state ) if $verbose;
 	if( scalar keys %state == 0 ) {
