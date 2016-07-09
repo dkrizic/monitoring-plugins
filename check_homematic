@@ -51,7 +51,7 @@ my $ret = 1;
 my $retname = 'WARNING';
 if( $level eq 'critical' ) {
 	$ret = 2;
-	$retname = 'WARNING';
+	$retname = 'CRITICAL';
 }
 
 if( $mode eq 'srvmsg' ) {
@@ -64,7 +64,7 @@ if( $mode eq 'srvmsg' ) {
 		my $address = @{$entry}[0]->value;
 		my $state = @{$entry}[1]->value;
 		push @{$state{$state}}, $address;
-		print "$address = $state\n";
+		#print "$address = $state\n";
 	}
 	print Dumper( \%state ) if $verbose;
 	if( scalar keys %state == 0 ) {
