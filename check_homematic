@@ -109,11 +109,17 @@ my %address;
 printf "Reading details for %i devices\n",scalar keys %address if $verbose;
 foreach my $address (keys %address) {
 	my $id = $address;
-	$id = $address{$address}->{'id'} if $address{$address}->{'id'};
 	my @msg;
-	push @msg, RPC::XML::int->new( $id );
-	push @msg, RPC::XML::int->new( 0 );
-	push @msg, RPC::XML::string->new( 'VALUES' );
+	if( $address{$address}->{'id'} ){
+	$id = $address{$address}->{'id'};
+		push @msg, RPC::XML::int->new( $id );
+		push @msg, RPC::XML::int->new( 0 );
+		push @msg, RPC::XML::string->new( 'VALUES' );
+	} else {
+		push @msg, RPC::XML::string->new( $id.":0" );
+		push @msg, RPC::XML::string->new( 'VALUES' );
+		push @msg, RPC::XML::int->new( 0 );
+	}
 	my $resp = $cli->send_request('getParamset',@msg);
 	print Dumper( $resp ) if $verbose;
 	$address{$address}->{'unreach'} = $resp->value->{'UNREACH'};
