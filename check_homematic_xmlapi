@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl -w
+#!/usr/bin/perl -w
 
 # Checks HomeMatic CCU2 for 
 # - unreachable devices
@@ -9,11 +9,6 @@
 # - LWP:.UserAgent
 # - XML::Simple
 # Requires xmlapi to be installed on the CCU2
-#
-# Written by Darko Krizic, darko@krizic.net
-#
-# Source is free and can be found as:
-# https://github.com/dkrizic/monitoring-plugins/blob/master/check_homematic_xmlapi
 
 use strict;
 use LWP::UserAgent;
@@ -92,6 +87,12 @@ for my $device ( @{$xml->{'device'}} ) {
 	my $sticky = $device->{'sticky_unreach'};
 	if( defined $sticky && $sticky eq 'true' ) {
 		push( @sticky, $did );
+	}
+
+	# Check for config pending
+	my $pending = $device->{'config_pending'};
+	if(defined $pending && $pending eq 'true' ) {
+		push( @pending, $did );
 	}
 
 	for my $channel (@{$device->{'channel'}}) {
