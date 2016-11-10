@@ -45,7 +45,7 @@ usage() unless $mode eq 'lowbat' || $mode eq 'unreach' || $mode eq 'pending' || 
 
 my %device;				# Information about devices
 my @lowbat;				# Devices with low battery
-my $battcount;				# Devices that have battery
+my $battcount = 0;			# Devices that have battery
 my @unreach;				# Unreachable devices
 my @sticky;				# Sticky unreach
 my @pending;				# Devices with pending configuration
@@ -175,11 +175,11 @@ if( $mode eq "unreach" ) {
 		$message = "All $battcount battery driven devices ok";
 		$status = 0;
 	} else {
-		my $devnames = list( \@pending );
+		my $devnames = list( \@lowbat );
 		$message = "$bcount of $battcount battery devicen devices have low battery [$devnames]";
 		$status = 1;
 	}
-	$perf = "total=$devcount, has_battery=$battcount, battery_devices=$bcount";
+	$perf = "total=$devcount, has_battery=$battcount, low_battery=$bcount";
 } else { 
 	$message = "Unknown mode $mode";
 	$status = 2;
@@ -204,8 +204,13 @@ if( $status == 0 ) {
 }
 
 my $out = "$retname - $message | $perf";
-# handling unwanted characters (e.g. Umalauts)
-$out =~ s/[^A-Za-z0-9 ()\[\]\|,]/_/g;
+$out =~ s/[^A-Za-z0-9 ()\[\]\|,-=]/_/g;
 print $out."\n";
 exit $status;
+
+#print Dumper( \%device );
+#print Dumper( \@unreach );
+#print Dumper( \@sticky );
+#print Dumper( \@pending );
+#print Dumper( \@lowbat );
 
