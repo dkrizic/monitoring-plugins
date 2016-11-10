@@ -22,7 +22,7 @@ my $url = undef;
 
 sub usage() {
 	print <<EOF;
-Usage: check_homematic_xmlapi [-v] --url=<hostname> --mode=<lowbat|unreach> --level=<critical|warning> 
+Usage: check_homematic_xmlapi [-v] --url=<url_to_statelist.cgi> --mode=<lowbat|unreach|pending|sticky> --level=<critical|warning> 
 	url: URL that points to XML api statelist.cgi, usually http://ccu/addons/xmlapi/statelist.cgi
 	mode: Check for "lowbat", "unreach", "sticky" (for sticky unreach) or configuration "pending"
 	level: Either "critical" or "warning" in case that at least one device is positive on test
@@ -75,7 +75,7 @@ for my $device ( @{$xml->{'device'}} ) {
 	my $dname = $device->{'name'};
 	$device{$did}->{'name'} = $dname;
 	$device{$did}->{'display'} = $dname;
-	#print "$dname\n" if $verbose;
+	print "$dname\n" if $verbose;
 
 	# Check for unreach
 	my $unreach = $device->{'unreach'};
@@ -99,7 +99,7 @@ for my $device ( @{$xml->{'device'}} ) {
 		my $cname = $channel->{'name'};	
 		my $visible = $channel->{'visible'};
 		if( $visible eq '' ) {
-			#print "\t$cname\n" if $verbose
+			print "\t$cname\n" if $verbose;
 			for my $dp (@{$channel->{'datapoint'}}) {	
 				my $dpname = $dp->{'name'};
 				my ($a,$b) = split( ':', $dpname );
@@ -109,8 +109,8 @@ for my $device ( @{$xml->{'device'}} ) {
 				if( $f eq 'LOWBAT' ) {
 					$battcount++;
 					my $lowbat = $dp->{'value'};
-					#print "\t\t$c,$d,$e,$f,$lowbat\n" if $verbose;
-					if( $lowbat ne 'false' ) {
+					print "\t\t$c,$d,$e,$f,$lowbat\n" if $verbose;
+					if( $lowbat && $lowbat eq 'true' ) {
 						push( @lowbat, $did );
 					}
 				}
