@@ -9,6 +9,11 @@
 # - LWP:.UserAgent
 # - XML::Simple
 # Requires xmlapi to be installed on the CCU2
+#
+# Written by Darko Krizic, darko@krizic.net
+#
+# Source is free and can be found as:
+# https://github.com/dkrizic/monitoring-plugins/blob/master/check_homematic_xmlapi
 
 use strict;
 use LWP::UserAgent;
