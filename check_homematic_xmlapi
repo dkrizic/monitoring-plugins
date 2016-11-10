@@ -1,0 +1,208 @@
+#!/usr/local/bin/perl -w
+
+# Checks HomeMatic CCU2 for 
+# - unreachable devices
+# - low battery
+# - configuration pending
+# - sticky unreach 
+# Requires perl modules
+# - LWP:.UserAgent
+# - XML::Simple
+# Requires xmlapi to be installed on the CCU2
+
+use strict;
+use LWP::UserAgent;
+use XML::Simple;
+use Getopt::Long;
+
+my $verbose = 0;			# Verbose printing
+my $level = undef;
+my $mode = undef;
+my $url = undef;
+
+sub usage() {
+	print <<EOF;
+Usage: check_homematic_xmlapi [-v] --url=<hostname> --mode=<lowbat|unreach> --level=<critical|warning> 
+	url: URL that points to XML api statelist.cgi, usually http://ccu/addons/xmlapi/statelist.cgi
+	mode: Check for "lowbat", "unreach", "sticky" (for sticky unreach) or configuration "pending"
+	level: Either "critical" or "warning" in case that at least one device is positive on test
+EOF
+	exit 255;
+}
+
+GetOptions(
+	'verbose|v!' => \$verbose,
+	'url|h=s' => \$url,
+	'mode|m=s' => \$mode,
+	'level|l=s' => \$level,
+);
+
+usage() unless defined $url;
+usage() unless defined $mode;
+usage() unless defined $level;
+usage() unless $level eq 'warning' || $level eq 'critical';
+usage() unless $mode eq 'lowbat' || $mode eq 'unreach' || $mode eq 'pending' || $mode eq "sticky";
+
+my %device;				# Information about devices
+my @lowbat;				# Devices with low battery
+my $battcount;				# Devices that have battery
+my @unreach;				# Unreachable devices
+my @sticky;				# Sticky unreach
+my @pending;				# Devices with pending configuration
+
+my $ua = LWP::UserAgent->new(ssl_opts => {verify_hostname => 0});
+my $res = $ua->get($url);
+my $content = $res->content();
+my $xml = XMLin($content, ForceArray => 1, KeyAttr => [  ]);
+
+sub list($) {
+	my $list = shift;
+	my @name;
+	for my $devid (@$list) {
+		my $name = $device{$devid}->{'name'};
+		my $id = $device{$devid}->{'id'};
+		my $display = $name;
+		if( $id ) {
+			$display .= " ($id)";
+		}
+		push @name,$display;
+	}
+	return join(", ", @name);
+}
+
+for my $device ( @{$xml->{'device'}} ) {
+	my $did = $device->{'ise_id'};
+	my $dname = $device->{'name'};
+	$device{$did}->{'name'} = $dname;
+	$device{$did}->{'display'} = $dname;
+	#print "$dname\n" if $verbose;
+
+	# Check for unreach
+	my $unreach = $device->{'unreach'};
+	if( defined $unreach && $unreach eq 'true' ) {
+		push( @unreach, $did );
+	}
+
+	# Check for sticky unreach
+	my $sticky = $device->{'sticky_unreach'};
+	if( defined $sticky && $sticky eq 'true' ) {
+		push( @sticky, $did );
+	}
+
+	for my $channel (@{$device->{'channel'}}) {
+		my $cname = $channel->{'name'};	
+		my $visible = $channel->{'visible'};
+		if( $visible eq '' ) {
+			#print "\t$cname\n" if $verbose
+			for my $dp (@{$channel->{'datapoint'}}) {	
+				my $dpname = $dp->{'name'};
+				my ($a,$b) = split( ':', $dpname );
+				my ($c,$d) = split( '\.', $a );
+				my ($e,$f) = split( '\.', $b );
+				$device{$did}->{'id'} = $d;
+				if( $f eq 'LOWBAT' ) {
+					$battcount++;
+					my $lowbat = $dp->{'value'};
+					#print "\t\t$c,$d,$e,$f,$lowbat\n" if $verbose;
+					if( $lowbat ne 'false' ) {
+						push( @lowbat, $did );
+					}
+				}
+			}
+		}
+	}
+}
+
+for( keys %device ) {
+	if( defined $device{$_}->{'id'} ) {
+		$device{$_}->{'display'} = $device{$_}->{'name'}." (".$device{$_}->{'id'}.")";
+	}
+}
+
+my $devcount = scalar keys %device;
+
+my $status = 3;
+my $message;
+my $perf;
+
+if( $mode eq "unreach" ) {
+	# Unreach handling
+	my $urcount = scalar @unreach;
+	if( $urcount == 0 ) {
+		$message = "No $devcount devices are unreachable";
+		$status = 0;
+
+	} else {
+		my $devnames = list( \@unreach );
+		$message = "$urcount of $devcount devices are not reachable [$devnames]";
+		$status = 1;
+	}	
+	$perf = "total=$devcount, unreach=$urcount";
+} elsif( $mode eq "sticky" ) {
+	# Sticky Unreach handling
+	my $surcount = scalar @sticky;
+	if( $surcount == 0 ) {
+		$message = "None of $devcount devices have sticky unreachable";
+		$status = 0;
+	} else {
+		my $devnames = list( \@sticky );
+		$message = "$surcount of $devcount devices have sticky unreachable [$devnames]";
+		$status = 1;
+	}
+	$perf = "total=$devcount, sticky_unreach=$surcount";
+} elsif( $mode eq "pending" ) { 
+	# Pending handling
+	my $pcount = scalar @pending;
+	if( $pcount == 0 ) {
+		$message = "No of $devcount devices have pending configuration";
+		$status = 0;
+	} else {
+		my $devnames = list( \@pending );
+		$message = "$pcount of $devcount devices have pending configuration [$devnames]";
+		$status = 1;
+	}
+	$perf = "total=$devcount, pending_configuration=$pcount";
+} elsif( $mode eq "lowbat" ) {
+	# Battery
+	my $bcount = scalar @lowbat;
+	if( $bcount == 0 ) {
+		$message = "All $battcount battery driven devices ok";
+		$status = 0;
+	} else {
+		my $devnames = list( \@pending );
+		$message = "$bcount of $battcount battery devicen devices have low battery [$devnames]";
+		$status = 1;
+	}
+	$perf = "total=$devcount, has_battery=$battcount, battery_devices=$bcount";
+} else { 
+	$message = "Unknown mode $mode";
+	$status = 2;
+}
+
+my $retname = "UNKNOWN";
+
+if( $status != 0 ) {
+	if( $level eq "critical" ) {
+		$status = 2;
+	} else {
+		$status = 1;
+	}
+}
+
+if( $status == 0 ) {
+	$retname = "OK";
+} elsif( $status == 1 ) {
+	$retname = "WARNING";
+} elsif( $status == 2 ) {
+	$retname = "CRITICAL";
+}
+
+print "$retname - $message | $perf\n";
+exit $status;
+
+#print Dumper( \%device );
+#print Dumper( \@unreach );
+#print Dumper( \@sticky );
+#print Dumper( \@pending );
+#print Dumper( \@lowbat );
+
