@@ -203,12 +203,9 @@ if( $status == 0 ) {
 	$retname = "CRITICAL";
 }
 
-print "$retname - $message | $perf\n";
+my $out = "$retname - $message | $perf";
+# handling unwanted characters (e.g. Umalauts)
+$out =~ s/[^A-Za-z0-9 ()\[\]\|,]/_/g;
+print $out."\n";
 exit $status;
-
-#print Dumper( \%device );
-#print Dumper( \@unreach );
-#print Dumper( \@sticky );
-#print Dumper( \@pending );
-#print Dumper( \@lowbat );
 
