@@ -98,7 +98,7 @@ for my $device ( @{$xml->{'device'}} ) {
 	for my $channel (@{$device->{'channel'}}) {
 		my $cname = $channel->{'name'};	
 		my $visible = $channel->{'visible'};
-		if( $visible eq '' ) {
+		if( $visible eq 'true' ) {
 			print "\t$cname\n" if $verbose;
 			for my $dp (@{$channel->{'datapoint'}}) {	
 				my $dpname = $dp->{'name'};
@@ -106,7 +106,7 @@ for my $device ( @{$xml->{'device'}} ) {
 				my ($c,$d) = split( '\.', $a );
 				my ($e,$f) = split( '\.', $b );
 				$device{$did}->{'id'} = $d;
-				if( $f eq 'LOWBAT' ) {
+				if( $f eq 'LOW_BAT' ) {
 					$battcount++;
 					my $lowbat = $dp->{'value'};
 					print "\t\t$c,$d,$e,$f,$lowbat\n" if $verbose;
