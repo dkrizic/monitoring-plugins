@@ -106,7 +106,7 @@ for my $device ( @{$xml->{'device'}} ) {
 				my ($c,$d) = split( '\.', $a );
 				my ($e,$f) = split( '\.', $b );
 				$device{$did}->{'id'} = $d;
-				if( $f eq 'LOW_BAT' ) {
+                                if( $f eq 'LOW_BAT' || $f eq 'LOWBAT' ) {
 					$battcount++;
 					my $lowbat = $dp->{'value'};
 					print "\t\t$c,$d,$e,$f,$lowbat\n" if $verbose;
