@@ -100,18 +100,20 @@ for my $device ( @{$xml->{'device'}} ) {
 		my $visible = $channel->{'visible'};
 		if( $visible eq 'true' ) {
 			print "\t$cname\n" if $verbose;
-			for my $dp (@{$channel->{'datapoint'}}) {	
-				my $dpname = $dp->{'name'};
-				my ($a,$b) = split( ':', $dpname );
-				my ($c,$d) = split( '\.', $a );
-				my ($e,$f) = split( '\.', $b );
-				$device{$did}->{'id'} = $d;
-                                if( $f eq 'LOW_BAT' || $f eq 'LOWBAT' ) {
-					$battcount++;
-					my $lowbat = $dp->{'value'};
-					print "\t\t$c,$d,$e,$f,$lowbat\n" if $verbose;
-					if( $lowbat && $lowbat eq 'true' ) {
-						push( @lowbat, $did );
+			for my $dp (@{$channel->{'datapoint'}}) {
+				if( $dp->{'type'} ne '' ){
+					my $dpname = $dp->{'name'};
+					my ($a,$b) = split( ':', $dpname );
+					my ($c,$d) = split( '\.', $a );
+					my ($e,$f) = split( '\.', $b );
+					$device{$did}->{'id'} = $d;
+					if( $f eq 'LOW_BAT' || $f eq 'LOWBAT' ) {
+						$battcount++;
+						my $lowbat = $dp->{'value'};
+						print "\t\t$c,$d,$e,$f,$lowbat\n" if $verbose;
+						if( $lowbat && $lowbat eq 'true' ) {
+							push( @lowbat, $did );
+						}
 					}
 				}
 			}
